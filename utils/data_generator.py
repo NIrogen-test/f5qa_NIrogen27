@@ -71,4 +71,8 @@ class DataGenerator:
     def generate_name():
         return faker.first_name() + " " + faker.last_name()
 
+    @staticmethod
+    def generate_boolean():
+        return faker.boolean()
+
 
