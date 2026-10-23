@@ -4,7 +4,7 @@ from config.base_urls import MOVIE_BASE_URL
 MOVIE = '/movies'
 
 
-class MovieAPI(CustomRequester):
+class MoviesAPI(CustomRequester):
     def __init__(self, session):
         super().__init__(session=session, base_url=MOVIE_BASE_URL)
 

@@ -117,11 +117,16 @@ def created_movie(api_manager, new_movie, admin_credential):
     api_manager.auth_api.authenticate(admin_credential)
     response = api_manager.movies_api.create_movie(new_movie).json()
     new_movie["id"] = response["id"]
-    return new_movie
+    yield new_movie
+    try:
+        api_manager.movies_api.delete_movie(new_movie["id"])
+    except Exception:  # чтобы не падал тест на удаление ....
+        pass
 
 @pytest.fixture(scope="function")
 def movie_id(created_movie):
     return created_movie["id"]
+
 
 @pytest.fixture(scope="function")
 def movie_id_without_authentication():
