@@ -3,6 +3,9 @@ import pytest
 from clients.api_manager import ApiManager
 from utils.data_generator import DataGenerator
 import random
+from resources.user_creds import SuperAdminCreds
+from entities.user import User
+from constants.roles import Roles
 
 
 
@@ -41,7 +44,7 @@ def create_users(api_manager):
             "fullName": DataGenerator.generate_name(),
             "password": password,
             "passwordRepeat": password,
-            "roles": ["USER"]
+            "roles": [Roles.USER.value]
         }
 
         response = api_manager.auth_api.register_user(user_data).json()
@@ -131,3 +134,80 @@ def movie_id(created_movie):
 @pytest.fixture(scope="function")
 def movie_id_without_authentication():
     return 997
+
+
+@pytest.fixture
+def user_session():
+    user_pool = [] # созданрие пула созданныхх сессий
+
+    def _create_user_session():
+        session = requests.Session() # Создаем новую сессию
+        user_session = ApiManager(session) #инициализация обьекта ApiManager
+        user_pool.append(user_session) #добавляем сессию в user_pool, для закрытия сессий
+        return user_session
+
+    yield _create_user_session()
+
+    for user in user_pool:
+        user.close_session()
+
+
+@pytest.fixture
+def super_admin(user_session):
+    new_session = user_session
+
+    super_admin = User(
+        SuperAdminCreds.USERNAME,
+        SuperAdminCreds.PASSWORD,
+        [Roles.SUPER_ADMIN.value],
+        new_session
+    )
+
+    super_admin.api.auth_api.authenticate(super_admin.creds, )
+
+    return super_admin
+
+@pytest.fixture(scope="function")
+def creation_user_data(test_user):
+    updated_data = test_user.copy()
+    updated_data.update({
+        "verified": True,
+        "banned": False
+    })
+    return updated_data
+
+@pytest.fixture
+def common_user(user_session, super_admin, creation_user_data):
+    new_session = user_session
+
+    common_user = User(
+        creation_user_data['email'],
+        creation_user_data['password'],
+        [Roles.USER.value],
+        new_session
+    )
+
+    super_admin.api.user_api.create_user(creation_user_data, expected_status=201)
+    common_user.api.auth_api.authenticate(common_user.creds)
+    return common_user
+
+@pytest.fixture
+def admin(user_session, super_admin, creation_user_data):
+    new_session = user_session
+
+    admin = User(
+        creation_user_data['email'],
+        creation_user_data['password'],
+        [Roles.ADMIN.value],
+        new_session
+    )
+
+    super_admin.api.user_api.create_user(creation_user_data, expected_status=201)
+    admin.api.auth_api.authenticate(admin.creds)
+    return admin
+
+
+
+
+
+

@@ -6,10 +6,11 @@ MOVIE = '/movies'
 
 class MoviesAPI(CustomRequester):
     def __init__(self, session):
+        self.session = session
         super().__init__(session=session, base_url=MOVIE_BASE_URL)
 
 
-    def filter_movies(self, filter_data, expected_status = 200):
+    def get_movies(self, filter_data, expected_status = 200):
         return self.send_request(
             method="GET",
             endpoint=MOVIE,
@@ -25,7 +26,7 @@ class MoviesAPI(CustomRequester):
             expected_status = expected_status
         )
 
-    def get_movie_info(self, movie_id, expected_status = 200):
+    def get_movie(self, movie_id, expected_status = 200):
         return self.send_request(
             method="GET",
             endpoint=f'{MOVIE}/{movie_id}',

@@ -22,7 +22,7 @@ class TestAuth:
         assert response_data["user"]["email"] == registered_user["email"]
 
     def test_get_user_info(self, api_manager, authenticated_user):
-        response = api_manager.user_api.get_user_info(authenticated_user['id'])
+        response = api_manager.user_api.get_user(authenticated_user['id'])
         response_data = response.json()
         assert response.status_code == 200
         assert response_data["email"] == authenticated_user["email"]
