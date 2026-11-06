@@ -1,11 +1,18 @@
+from pydoc import Helper
+
 import requests
 import pytest
 from clients.api_manager import ApiManager
+from db_requester.db_client import get_db_session
 from utils.data_generator import DataGenerator
 import random
 from resources.user_creds import SuperAdminCreds
 from entities.user import User
 from constants.roles import Roles
+from models.base_models import TestUser
+from sqlalchemy.orm import Session
+from db_requester.db_client import get_db_session
+from db_requester.db_helpers import DBHelper
 
 
 
@@ -22,15 +29,27 @@ def api_manager(session):
     return ApiManager(session)
 
 
-@pytest.fixture(scope="function")
-def test_user():
+@pytest.fixture
+def test_user() -> TestUser:
     password = DataGenerator.generate_password()
+    return TestUser(
+        email=DataGenerator.generate_random_email(),
+        fullName=DataGenerator.generate_name(),
+        password=password,
+        passwordRepeat=password,
+        roles=[Roles.USER.value]
+    )
+
+@pytest.fixture
+def registration_user_data():
+    random_password = DataGenerator.generate_password()
+
     return {
         "email": DataGenerator.generate_random_email(),
         "fullName": DataGenerator.generate_name(),
-        "password": password,
-        "passwordRepeat": password,
-        "roles": ["USER"]
+        "password": random_password,
+        "passwordRepeat": random_password,
+        "roles": [Roles.USER.value]
     }
 
 
@@ -206,7 +225,28 @@ def admin(user_session, super_admin, creation_user_data):
     admin.api.auth_api.authenticate(admin.creds)
     return admin
 
+@pytest.fixture(scope="module")
+def db_session() -> Session:
+    db_session = get_db_session()
+    yield db_session
+    db_session.close()
 
+@pytest.fixture(scope="function")
+def db_helper(db_session):
+    db_helper = DBHelper(db_session)
+    yield db_helper
+
+@pytest.fixture(scope="function")
+def created_test_user(db_helper):
+    user = db_helper.create_test_user(DataGenerator.generate_user_data())
+    yield user
+    user_to_delete = db_helper.get_user_by_id(user.id)
+    if user_to_delete:
+        db_helper.delete_user(user_to_delete)
+
+@pytest.fixture(scope="function")
+def movie_data():
+    return DataGenerator.generate_movie_data()
 
 
 

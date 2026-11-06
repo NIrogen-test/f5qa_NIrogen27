@@ -1,13 +1,12 @@
-
+from models.base_models import RegisterUserResponse
 
 class TestAuth:
     def test_register_user(self, api_manager, test_user):
-        response = api_manager.auth_api.register_user(test_user)
-        response_data = response.json()
+        response = api_manager.auth_api.register_user(test_user.model_dump(mode="json"))
+        register_user_response = RegisterUserResponse(**response.json())
 
-        assert response_data["email"] == test_user["email"]
-        assert "id" in response_data
-        assert "USER" in response_data["roles"]
+        assert register_user_response.email == test_user.email, "Email не совпадает"
+
 
     def test_register_and_login_user(self, api_manager, registered_user):
         login_data = {

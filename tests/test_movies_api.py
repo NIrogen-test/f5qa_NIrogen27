@@ -1,15 +1,34 @@
-
+import pytest
 
 class TestMoviePositive:
 
-    def test_get_poster(self, api_manager, movie_params):
-        response = api_manager.movies_api.get_movies(movie_params)
+    @pytest.mark.parametrize("movie_data", [{"minPrice": 100, "maxPrice": 5000}, {"location":"SPB"}, {"genreId":7}])
+    def test_get_poster(self, api_manager, movie_data):
+
+        expected_page = movie_data.get("page", 1)
+        expected_page_size = movie_data.get("pageSize", 10)
+
+        response = api_manager.movies_api.get_movies(movie_data)
         response_data = response.json()
 
-        assert response_data["page"] == movie_params["page"]
-        assert response_data["pageSize"] == movie_params["pageSize"]
-        assert len(response_data['movies']) > 0
-        assert all(m['genreId'] == movie_params['genreId'] for m in response_data['movies'])
+        assert response_data["page"] == expected_page
+        assert response_data["pageSize"] == expected_page_size
+
+        movies = response_data["movies"]
+        assert len(movies) > 0
+
+        if "minPrice" in movie_data and "maxPrice" in movie_data:
+            assert all(movie_data["minPrice"] <= m['price'] <= movie_data["maxPrice"] for m in movies)
+
+        if "location" in movie_data:
+            loc = movie_data["location"]
+            assert all(m["location"] == loc for m in movies), "Локация не совпадает"
+
+            # 4. Проверка жанра (если он есть)
+        if "genreId" in movie_data:
+            genre = movie_data["genreId"]
+            assert all(m["genreId"] == genre for m in movies), "Жанр не совпадает"
+
 
     def test_get_movie_info(self, api_manager, movie_id):
         response = api_manager.movies_api.get_movie(movie_id)
@@ -47,6 +66,7 @@ class TestMoviePositive:
         api_manager.movies_api.get_movie(movie_id, expected_status=404)
 
         assert response_data['id'] == movie_id
+
 
     def test_patch_movie_with_empty_data(self, api_manager, movie_id, empty_movie, super_admin):
         response = super_admin.api.movies_api.patch_movie(movie_id, empty_movie)
