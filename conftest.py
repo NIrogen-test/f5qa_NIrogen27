@@ -9,13 +9,22 @@ import random
 from resources.user_creds import SuperAdminCreds
 from entities.user import User
 from constants.roles import Roles
-from models.base_models import TestUser
+from models.base_models import TestUser, NewMovie, MovieParams
 from sqlalchemy.orm import Session
 from db_requester.db_client import get_db_session
 from db_requester.db_helpers import DBHelper
+from dotenv import load_dotenv
+import os
 
 
+load_dotenv()
 
+
+@pytest.fixture(scope="function")
+def admin_credential():
+    EMAIL = os.getenv('SUPER_ADMIN_USERNAME')
+    PASSWORD = os.getenv('SUPER_ADMIN_PASSWORD')
+    return (EMAIL, PASSWORD)
 
 @pytest.fixture(scope="session")
 def session():
@@ -40,19 +49,6 @@ def test_user() -> TestUser:
         roles=[Roles.USER.value]
     )
 
-@pytest.fixture
-def registration_user_data():
-    random_password = DataGenerator.generate_password()
-
-    return {
-        "email": DataGenerator.generate_random_email(),
-        "fullName": DataGenerator.generate_name(),
-        "password": random_password,
-        "passwordRepeat": random_password,
-        "roles": [Roles.USER.value]
-    }
-
-
 @pytest.fixture(scope="function")
 def create_users(api_manager):
     def create_user():
@@ -75,13 +71,6 @@ def create_users(api_manager):
 
 
 
-
-@pytest.fixture(scope="function")
-def admin_credential():
-    return ("api1@gmail.com", "asdqwe123Q")
-    #     "email": "api1@gmail.com",
-    #     "password": "asdqwe123Q",
-    #
 
 
 @pytest.fixture(scope="function")
@@ -106,48 +95,45 @@ def unauthenticated_api_manager(registered_user):
     http_session.close()
 
 @pytest.fixture(scope="function")
-def movie_params():
-    return {
-        "pageSize": random.randint(1, 10),
-        "page": 1,
-        "minPrice": 100,
-        "maxPrice": random.randint(1000, 5000),
-        "location": "SPB",
-        "genreId": random.randint(5,10),
-    }
+def movie_params() -> MovieParams:
+    return MovieParams(
+        pageSize= random.randint(1, 10),
+        page= 1,
+        minPrice= 100,
+        maxPrice= random.randint(1000, 5000),
+        location= "SPB",
+        genreId= random.randint(5,10),
+    )
 
 @pytest.fixture(scope="function")
-def new_movie():
-    return {
-      "name": DataGenerator.generate_name(),
-      "imageUrl": f"https://{DataGenerator.generate_lastname()}.url",
-      "price": random.randint(500, 5000),
-      "description": "Описание фильма",
-      "location": "SPB",
-      "published": DataGenerator.generate_boolean(),
-      "genreId": 7
-    }
+def new_movie() -> NewMovie:
+    return NewMovie(
+      name= DataGenerator.generate_name(),
+      imageUrl=f"https://{DataGenerator.generate_lastname()}.url",
+      price= random.randint(500, 5000),
+      description= "Описание фильма",
+      location= "SPB",
+      published= DataGenerator.generate_boolean(),
+      genreId= 7
+    )
 
 @pytest.fixture(scope="function")
 def empty_movie():
-    return {
-
-    }
+    return { }
 
 @pytest.fixture(scope="function")
-def created_movie(api_manager, new_movie, admin_credential):
-    api_manager.auth_api.authenticate(admin_credential)
-    response = api_manager.movies_api.create_movie(new_movie).json()
-    new_movie["id"] = response["id"]
+def created_movie(api_manager, new_movie, super_admin):
+    response = api_manager.movies_api.create_movie(new_movie.model_dump(mode="json")).json()
+    new_movie.id = response["id"]
     yield new_movie
     try:
-        api_manager.movies_api.delete_movie(new_movie["id"])
+        api_manager.movies_api.delete_movie(new_movie.id)
     except Exception:  # чтобы не падал тест на удаление ....
         pass
 
 @pytest.fixture(scope="function")
 def movie_id(created_movie):
-    return created_movie["id"]
+    return created_movie.id
 
 
 @pytest.fixture(scope="function")
@@ -157,11 +143,11 @@ def movie_id_without_authentication():
 
 @pytest.fixture
 def user_session():
-    user_pool = [] # созданрие пула созданныхх сессий
+    user_pool = [] # создание пула созданных сессий
 
     def _create_user_session():
         session = requests.Session() # Создаем новую сессию
-        user_session = ApiManager(session) #инициализация обьекта ApiManager
+        user_session = ApiManager(session) #инициализация объекта ApiManager
         user_pool.append(user_session) #добавляем сессию в user_pool, для закрытия сессий
         return user_session
 
@@ -182,14 +168,13 @@ def super_admin(user_session):
         new_session
     )
 
-    super_admin.api.auth_api.authenticate(super_admin.creds, )
+    super_admin.api.auth_api.authenticate(super_admin.creds)
 
     return super_admin
 
 @pytest.fixture(scope="function")
 def creation_user_data(test_user):
-    updated_data = test_user.copy()
-    updated_data.update({
+    updated_data = test_user.model_copy(update={
         "verified": True,
         "banned": False
     })
@@ -200,8 +185,8 @@ def common_user(user_session, super_admin, creation_user_data):
     new_session = user_session
 
     common_user = User(
-        creation_user_data['email'],
-        creation_user_data['password'],
+        creation_user_data.email,
+        creation_user_data.password,
         [Roles.USER.value],
         new_session
     )
@@ -215,8 +200,8 @@ def admin(user_session, super_admin, creation_user_data):
     new_session = user_session
 
     admin = User(
-        creation_user_data['email'],
-        creation_user_data['password'],
+        creation_user_data.email,
+        creation_user_data.password,
         [Roles.ADMIN.value],
         new_session
     )

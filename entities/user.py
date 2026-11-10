@@ -9,5 +9,5 @@ class User:
 
     @property
     def creds(self):
-        #возвращает кортещ почты и пароля
+        #возвращает кортеж почты и пароля
         return self.email, self.password

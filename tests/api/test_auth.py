@@ -7,7 +7,6 @@ class TestAuth:
 
         assert register_user_response.email == test_user.email, "Email не совпадает"
 
-
     def test_register_and_login_user(self, api_manager, registered_user):
         login_data = {
             "email": registered_user["email"],
