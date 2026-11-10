@@ -71,8 +71,6 @@ def create_users(api_manager):
 
 
 
-
-
 @pytest.fixture(scope="function")
 def registered_user(api_manager, test_user):
     response = api_manager.auth_api.register_user(test_user).json()
@@ -82,14 +80,14 @@ def registered_user(api_manager, test_user):
 
 @pytest.fixture(scope="function")
 def authenticated_user(api_manager, test_user, admin_credential):
-    response = api_manager.auth_api.register_user(test_user)
+    response = api_manager.auth_api.register_user(test_user.model_dump(mode="json"))
     response_data = response.json()
     cred = admin_credential
     api_manager.auth_api.authenticate(cred)
     return response_data
 
 @pytest.fixture(scope="function")
-def unauthenticated_api_manager(registered_user):
+def unauthenticated_api_manager():
     http_session = requests.Session()
     yield ApiManager(http_session)
     http_session.close()
@@ -107,6 +105,7 @@ def movie_params() -> MovieParams:
 
 @pytest.fixture(scope="function")
 def new_movie() -> NewMovie:
+
     return NewMovie(
       name= DataGenerator.generate_name(),
       imageUrl=f"https://{DataGenerator.generate_lastname()}.url",
@@ -122,12 +121,17 @@ def empty_movie():
     return { }
 
 @pytest.fixture(scope="function")
-def created_movie(api_manager, new_movie, super_admin):
-    response = api_manager.movies_api.create_movie(new_movie.model_dump(mode="json")).json()
+def created_movie( new_movie, super_admin):
+    data = new_movie.model_dump(mode="json")
+    data.pop("id", None)
+
+    response = super_admin.api.movies_api.create_movie(data).json()
+
     new_movie.id = response["id"]
+
     yield new_movie
     try:
-        api_manager.movies_api.delete_movie(new_movie.id)
+        super_admin.api.movies_api.delete_movie(new_movie.id)
     except Exception:  # чтобы не падал тест на удаление ....
         pass
 
@@ -191,7 +195,8 @@ def common_user(user_session, super_admin, creation_user_data):
         new_session
     )
 
-    super_admin.api.user_api.create_user(creation_user_data, expected_status=201)
+    user_data = creation_user_data.model_dump(mode="json")
+    super_admin.api.user_api.create_user(user_data, expected_status=201)
     common_user.api.auth_api.authenticate(common_user.creds)
     return common_user
 

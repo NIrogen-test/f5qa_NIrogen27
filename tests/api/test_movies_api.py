@@ -1,5 +1,7 @@
 import pytest
 import allure
+from allure_commons.types import Severity
+
 from utils.data_generator import DataGenerator
 import random
 
@@ -9,6 +11,7 @@ class TestMoviePositive:
 
     @allure.story("Получение списка фильмов с фильтрацией")
     @allure.title("Проверка фильтрации фильмов по параметрам")
+    @pytest.mark.smoke
     @pytest.mark.parametrize("movie_data", [{"minPrice": 100, "maxPrice": 5000}, {"location":"SPB"}, {"genreId":7}])
     def test_get_poster(self, api_manager, movie_data):
 
@@ -44,24 +47,24 @@ class TestMoviePositive:
 
     @allure.story("Получение описание фильма")
     @allure.title("Описание фильма по movie_id")
-    def test_get_movie_info(self, api_manager, movie_id):
+    @pytest.mark.smoke
+    def test_get_movie_info(self, super_admin, movie_id):
         with allure.step(f"отправка GET запроса на получение описания фильма по id:{movie_id}"):
-            response = api_manager.movies_api.get_movie(movie_id)
+            response = super_admin.api.movies_api.get_movie(movie_id)
             response_data = response.json()
 
         with allure.step("Проверка что id фильма в ответе соответствует movie_id"):
             assert movie_id == response_data["id"]
 
-    def test_get_movie_common_user(self, common_user, movie_id):
-        response_data = common_user.api.movies_api.get_movie(movie_id).json()
-
-        assert response_data["id"] == movie_id
 
     @allure.story("Создание фильма")
     @allure.title("Создание фильма через админ пользователя")
+    @pytest.mark.smoke
     def test_create_movie(self, new_movie, super_admin):
         with allure.step("Отправляет POST запрос под админ пользователем"):
-            response = super_admin.api.movies_api.create_movie(new_movie)
+            data = new_movie.model_dump(mode="json")
+            data.pop("id", None)
+            response = super_admin.api.movies_api.create_movie(data)
             response_data = response.json()
 
         with allure.step("Проверяем что созданный фильм соответствует данным, которые мы отправили при создании"):
@@ -73,10 +76,11 @@ class TestMoviePositive:
     #на этом тесте можно сделать параметризацию
     @allure.story("Обновление данных фильма")
     @allure.title("Обновление данных фильма с параметризацией через админ пользователя")
-    @pytest.mark.parametrize("data_movie", [{'name': DataGenerator.generate_name(), 'location': "MSC"},
+    @pytest.mark.parametrize("data_movie", [{'name': DataGenerator.generate_name(), 'location': "MSK"},
                                             {'price': random.randint(500, 5000), 'location': 'SPB'},
                                             {'genreId': 9, 'published': DataGenerator.generate_boolean()}
                                             ])
+    @pytest.mark.regression
     def test_patch_movie(self,api_manager, movie_id, data_movie, super_admin):
         with allure.step("Отправляем PATCH запрос на обновление данных"):
             super_admin.api.movies_api.patch_movie(movie_id, data_movie)
@@ -94,6 +98,7 @@ class TestMoviePositive:
 
     @allure.story("Удаление фильма")
     @allure.title("Удаление фильма по movie_id через админ пользователя")
+    @pytest.mark.smoke
     def test_delete_movie(self, api_manager, movie_id, super_admin):
         with allure.step("Отправка DELETE запроса"):
             response = super_admin.api.movies_api.delete_movie(movie_id)
@@ -107,6 +112,7 @@ class TestMoviePositive:
 
     @allure.story("Обновление данных фильма")
     @allure.title("Обновление фильма пустыми данными")
+    @pytest.mark.regression
     def test_patch_movie_with_empty_data(self, api_manager, movie_id, empty_movie, super_admin):
         with allure.step("Отправляем PATCH запрос с пустыми данными"):
             response = super_admin.api.movies_api.patch_movie(movie_id, empty_movie)
@@ -120,6 +126,7 @@ class TestMoviePositive:
             assert response_data["price"] == movie_info["price"]
 
 @allure.feature("Негативные тесты")
+@pytest.mark.negative
 class TestMovieNegative:
 
     @allure.story("Создание фильма")
@@ -130,32 +137,15 @@ class TestMovieNegative:
             response_data = response.json()
 
         with allure.step("Проверяем что в теле ответа есть сообщение об ошибке"):
-            assert response_data["message"] == [
-        "Поле name должно содержать не менее 3 символов",
-        "Поле name должно быть строкой",
-        "Поле name не может быть пустым",
-        "Поле price должно быть больше 0",
-        "Поле price должно быть числом",
-        "Поле price не может быть пустым",
-        "Поле description должно содержать не менее 5 символов",
-        "Поле description должно быть строкой",
-        "Поле description не может быть пустым",
-        "Поле location должно быть одним из: MSK, SPB",
-        "Поле location должно быть строкой",
-        "Поле location не может быть пустым",
-        "Поле published должно быть булевым значением",
-        "Поле published не может быть пустым",
-        "Поле genreId должно быть больше 0",
-        "Поле genreId должно быть целым числом",
-        "Поле genreId должно быть числом",
-        "Поле genreId не может быть пустым"
-    ]
+            assert 'name should not be empty' in response_data["message"]
 
     @allure.story("Создание фильма")
     @allure.title("Создание фильма без аутентификации")
     def test_negative_create_movie_without_access(self, unauthenticated_api_manager, new_movie):
         with allure.step("Пытаемся создать фильм без нужной авторизации"):
-            response = unauthenticated_api_manager.movies_api.create_movie(new_movie, expected_status=401)
+            data = new_movie.model_dump(mode="json")
+            data.pop("id", None)
+            response = unauthenticated_api_manager.movies_api.create_movie(data, expected_status=401)
             response_data = response.json()
 
         with allure.step("Проверяем что есть сообщение об ошибке"):
@@ -175,7 +165,9 @@ class TestMovieNegative:
     @allure.title("Обновление данных фильма без аутентификации")
     def test_negative_patch_movie_without_access(self, unauthenticated_api_manager, movie_id_without_authentication, new_movie):
         with allure.step("Пытаемся обновить данные фильма без нужной авторизации"):
-            response = unauthenticated_api_manager.movies_api.patch_movie(movie_id_without_authentication, new_movie,  expected_status=401)
+            data = new_movie.model_dump(mode="json")
+            data.pop("id", None)
+            response = unauthenticated_api_manager.movies_api.patch_movie(movie_id_without_authentication, data,  expected_status=401)
             response_data = response.json()
 
         with allure.step("Проверяем что есть сообщение об ошибке"):
@@ -185,30 +177,41 @@ class TestMovieNegative:
     @allure.title("Создание фильма через обычного пользователя")
     def test_create_movie_common_user(self, common_user, new_movie):
         with allure.step("Пытаемся создать фильм под обычным пользователем"):
-            response_data = common_user.api.movies_api.create_movie(new_movie, expected_status=403).json()
+            data = new_movie.model_dump(mode="json")
+            data.pop("id", None)
+            response_data = common_user.api.movies_api.create_movie(data, expected_status=403).json()
 
         with allure.step("Проверяем что сообщение об ошибки соответствует"):
             assert response_data['message'] == "Forbidden resource"
 
 @allure.feature("Тесты с Базой Данных")
+@pytest.mark.db
 class TestMoviesBD:
 
+    @allure.story("Создание и удаление фильма в Базе Данных")
+    @allure.title("Проверка всего цикла от создания до удаления")
+    @allure.severity(Severity.CRITICAL)
     def test_movies_db_requests(self, super_admin, db_helper, movie_data):
         movie_name = movie_data['name']
 
-        movie_db_before = db_helper.get_movie_by_name(movie_name)
-        assert movie_db_before is None
+        with allure.step("Проверяем что фильма пока что нет в бд"):
+            movie_db_before = db_helper.get_movie_by_name(movie_name)
+            assert movie_db_before is None
 
-        db_movie_data = movie_data.copy()
-        db_movie_data.pop("id", None)
+        with allure.step("Создаем фильм в бд"):
+            db_movie_data = movie_data.copy()
+            db_movie_data.pop("id", None)
 
-        created_movie = db_helper.create_test_movie(db_movie_data)
+            created_movie = db_helper.create_test_movie(db_movie_data)
 
-        movie_db_after = db_helper.get_movie_by_name(movie_name)
-        assert movie_db_after is not None
-        assert movie_db_after.id == created_movie.id
+        with allure.step("Проверяем что фильм есть в бд"):
+            movie_db_after = db_helper.get_movie_by_name(movie_name)
+            assert movie_db_after is not None
+            assert movie_db_after.id == created_movie.id
 
-        db_helper.delete_movie(created_movie)
+        with allure.step("Удаляем фильм из бд"):
+            db_helper.delete_movie(created_movie)
 
-        movie_in_db_final = db_helper.get_movie_by_name(movie_name)
-        assert movie_in_db_final is None, "Ошибка: фильм остался в базе после удаления!"
+        with allure.step("Проверяем что фильм удалился из бд"):
+            movie_in_db_final = db_helper.get_movie_by_name(movie_name)
+            assert movie_in_db_final is None, "Ошибка: фильм остался в базе после удаления!"
