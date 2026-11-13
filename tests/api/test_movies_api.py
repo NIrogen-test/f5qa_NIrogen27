@@ -1,6 +1,7 @@
 import pytest
 import allure
 from allure_commons.types import Severity
+from models.base_models import FindOneMovieResponse, MovieResponse, FindAllMoviesResponse
 
 from utils.data_generator import DataGenerator
 import random
@@ -11,7 +12,7 @@ class TestMoviePositive:
 
     @allure.story("Получение списка фильмов с фильтрацией")
     @allure.title("Проверка фильтрации фильмов по параметрам")
-    @pytest.mark.smoke
+    @pytest.mark.regression
     @pytest.mark.parametrize("movie_data", [{"minPrice": 100, "maxPrice": 5000}, {"location":"SPB"}, {"genreId":7}])
     def test_get_poster(self, api_manager, movie_data):
 
@@ -53,8 +54,11 @@ class TestMoviePositive:
             response = super_admin.api.movies_api.get_movie(movie_id)
             response_data = response.json()
 
+        with allure.step("Валидация через Pydantic"):
+            movie = FindOneMovieResponse(**response_data)
+
         with allure.step("Проверка что id фильма в ответе соответствует movie_id"):
-            assert movie_id == response_data["id"]
+            assert movie_id == movie.id
 
 
     @allure.story("Создание фильма")
@@ -65,12 +69,16 @@ class TestMoviePositive:
             data = new_movie.model_dump(mode="json")
             data.pop("id", None)
             response = super_admin.api.movies_api.create_movie(data)
+
+        with allure.step("Валидация через Pydantic"):
             response_data = response.json()
+            movie = MovieResponse(**response_data)
+
 
         with allure.step("Проверяем что созданный фильм соответствует данным, которые мы отправили при создании"):
-            assert response_data["name"] == new_movie.name
-            assert response_data["price"] == new_movie.price
-            assert response_data["genreId"] == new_movie.genreId
+            assert movie.name == new_movie.name
+            assert movie.price == new_movie.price
+            assert movie.genreId == new_movie.genreId
 
 
     #на этом тесте можно сделать параметризацию
@@ -85,12 +93,15 @@ class TestMoviePositive:
         with allure.step("Отправляем PATCH запрос на обновление данных"):
             super_admin.api.movies_api.patch_movie(movie_id, data_movie)
 
-        with allure.step("Получаем обновленные данные фильма по id"):
-            updated_movie = api_manager.movies_api.get_movie(movie_id).json()
+        with allure.step("Получаем обновленные данные фильма по id и делаем Валидацию через Pydantic"):
+            updated_movie = api_manager.movies_api.get_movie(movie_id)
+            updated_movie_data = updated_movie.json()
+            movie = MovieResponse(**updated_movie_data)
+
 
         with allure.step(f"Проверяем, что отправленные данные {data_movie} применились"):
             for key, expected_value in data_movie.items():
-                actual_value = updated_movie.get(key)
+                actual_value = getattr(movie, key)
 
                 # Проверяем, что значение в базе совпадает с тем, что мы отправили
                 assert actual_value == expected_value, \
@@ -116,14 +127,14 @@ class TestMoviePositive:
     def test_patch_movie_with_empty_data(self, api_manager, movie_id, empty_movie, super_admin):
         with allure.step("Отправляем PATCH запрос с пустыми данными"):
             response = super_admin.api.movies_api.patch_movie(movie_id, empty_movie)
-            response_data = response.json()
+            response_data = MovieResponse(**response.json())
 
         with allure.step("Получаем обновленные данные через movie_id"):
-            movie_info = api_manager.movies_api.get_movie(movie_id).json()
+            movie_info = MovieResponse(**api_manager.movies_api.get_movie(movie_id).json())
 
         with allure.step("Проверяем что данные соответствуют"):
-            assert response_data["name"] == movie_info["name"]
-            assert response_data["price"] == movie_info["price"]
+            assert response_data.name == movie_info.name
+            assert response_data.price == movie_info.price
 
 @allure.feature("Негативные тесты")
 @pytest.mark.negative

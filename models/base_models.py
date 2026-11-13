@@ -64,3 +64,41 @@ class MovieParams(BaseModel):
     maxPrice: int
     location: str
     genreId: int
+
+class GenreResponse(BaseModel):
+    name: str
+
+class FindAllMoviesResponse(BaseModel):
+    movies: List[MovieResponse]
+    count: int
+    page: int
+    pageSize: int
+    pageCount: int
+
+class FindOneMovieResponse(BaseModel):
+    id: int
+    name: str
+    price: int
+    description: str
+    imageUrl: str
+    location: str
+    published: bool
+    genreId: int
+    genre: GenreResponse
+    createdAt:  str = Field(description="Дата и время создания фильма в формате ISO 8601")
+    rating: int = Field(..., ge=0, le=5)
+    reviews: Optional[list] = None
+
+class MovieResponse(BaseModel):
+    id: int
+    name: str
+    price: int
+    description: str
+    imageUrl: str
+    location: str
+    published: bool
+    genreId: int
+    genre: GenreResponse
+    createdAt: str = Field(description="Дата и время создания фильма в формате ISO 8601")
+    rating: int = Field(..., ge=0, le=5)
+
