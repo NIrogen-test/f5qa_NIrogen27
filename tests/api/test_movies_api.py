@@ -21,30 +21,32 @@ class TestMoviePositive:
 
         with allure.step(f"Отправка GET запроса на получение фильмов с параметрами: {movie_data}"):
             response = api_manager.movies_api.get_movies(movie_data)
-            response_data = response.json()
+
+        with allure.step("Валидация ответа через Pydantic"):
+            response_data = FindAllMoviesResponse(**response.json())
 
         with allure.step("проверка параметров пагинации (page и pageSize)"):
-            assert response_data["page"] == expected_page
-            assert response_data["pageSize"] == expected_page_size
+            assert response_data.page == expected_page
+            assert response_data.pageSize == expected_page_size
 
-        movies = response_data["movies"]
+        movies = response_data.movies
         with allure.step("Проверка что список фильмов не пустой"):
             assert len(movies) > 0
 
         if "minPrice" in movie_data and "maxPrice" in movie_data:
             with allure.step(f"Проверка соответствия цен диапазону от {movie_data['minPrice']} до {movie_data['maxPrice']}"):
-                assert all(movie_data["minPrice"] <= m['price'] <= movie_data["maxPrice"] for m in movies)
+                assert all(movie_data["minPrice"] <= m.price <= movie_data["maxPrice"] for m in movies)
 
         if "location" in movie_data:
             loc = movie_data["location"]
             with allure.step(f"Проверка соответствия локации: {loc}"):
-                assert all(m["location"] == loc for m in movies), "Локация не совпадает"
+                assert all(m.location == loc for m in movies), "Локация не совпадает"
 
             # 4. Проверка жанра (если он есть)
         if "genreId" in movie_data:
             genre = movie_data["genreId"]
             with allure.step(f"Проверка соответствия жанра (genreId: {genre})"):
-                assert all(m["genreId"] == genre for m in movies), "Жанр не совпадает"
+                assert all(m.genreId == genre for m in movies), "Жанр не совпадает"
 
     @allure.story("Получение описание фильма")
     @allure.title("Описание фильма по movie_id")
