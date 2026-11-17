@@ -86,7 +86,7 @@ class FindOneMovieResponse(BaseModel):
     genreId: int
     genre: GenreResponse
     createdAt:  str = Field(description="Дата и время создания фильма в формате ISO 8601")
-    rating: int = Field(..., ge=0, le=5)
+    rating: float = Field(..., ge=0, le=5)
     reviews: Optional[list] = None
 
 class MovieResponse(BaseModel):
@@ -100,5 +100,5 @@ class MovieResponse(BaseModel):
     genreId: int
     genre: GenreResponse
     createdAt: str = Field(description="Дата и время создания фильма в формате ISO 8601")
-    rating: int = Field(..., ge=0, le=5)
+    rating: float = Field(..., ge=0, le=5)
 
