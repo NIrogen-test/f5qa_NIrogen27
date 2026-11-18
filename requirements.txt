@@ -1,3 +1,11 @@
 pytest
 requests
 faker
+pydantic
+psycopg2
+python-dotenv
+sqlalchemy
+fastapi
+pytz
+pytest-mock
+allure-pytest

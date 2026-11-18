@@ -8,5 +8,4 @@ __pycache__/
 *.xlsx
 *.log
 *.csv
-*.env
 .env

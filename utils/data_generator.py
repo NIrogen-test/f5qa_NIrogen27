@@ -1,5 +1,5 @@
 import random
-from datetime import timedelta
+from datetime import timedelta, datetime
 from faker import Faker
 import string
 
@@ -7,6 +7,10 @@ faker = Faker(locale='en_US')
 
 
 class DataGenerator:
+
+    @staticmethod
+    def generate_random_int(range):
+        return random.randint(1,  range)
 
     @staticmethod
     def generate_password(length=12):
@@ -71,4 +75,41 @@ class DataGenerator:
     def generate_name():
         return faker.first_name() + " " + faker.last_name()
 
+    @staticmethod
+    def generate_boolean():
+        return faker.boolean()
 
+
+    @staticmethod
+    def generate_user_data() -> dict:
+
+        from uuid import uuid4
+
+        return {
+            'id': f'{uuid4()}',
+            'email': DataGenerator.generate_random_email(),
+            'full_name': DataGenerator.generate_name(),
+            'password': DataGenerator.generate_password(),
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'verified': False,
+            'banned': False,
+            'roles': '{USER}'
+        }
+
+
+    @staticmethod
+    def generate_movie_data() -> dict:
+        from uuid import uuid4
+        return {
+            'id': f'{uuid4()}',
+            'name': DataGenerator.generate_name(),
+            'price': random.randint(500,5000),
+            'description': 'some description i guess',
+            'image_url': "image_url",
+            'location': 'SPB',
+            'published': faker.boolean(),
+            "rating": random.randint(1,10),
+            'genre_id': 7,
+            'created_at': datetime.now(),
+        }
